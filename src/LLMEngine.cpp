@@ -8,8 +8,8 @@ const size_t maxMessages = 10;
 static EmotionType labelToEnum(const String& lbl) {
   if      (lbl == "happy")   return EmotionType::Happy;
   else if (lbl == "sad")     return EmotionType::Sad;
-  else if (lbl == "mad")     return EmotionType::Angry;
-  else if (lbl == "sleepy")  return EmotionType::Sleeply;
+  else if (lbl == "angry")     return EmotionType::Angry;
+  else if (lbl == "sleepy")  return EmotionType::Sleepy;
   else if (lbl == "doubt")   return EmotionType::Doubt;
   else if (lbl == "neutral") return EmotionType::Neutral;
   return EmotionType::Undefined;
@@ -18,8 +18,7 @@ static EmotionType labelToEnum(const String& lbl) {
 LLMEngine::LLMEngine(const String& apiKey, const String& systemPrompt)
   : _apiKey(apiKey) {
   // 改行ルールを無条件で追加
-  _systemPrompt = systemPrompt + 
-    "返答は自然な単位で、30〜40文字ごとに改行してください。";
+  _systemPrompt = systemPrompt;
 
   if (!_systemPrompt.isEmpty()) {
     _history.emplace_back("system", _systemPrompt);
@@ -62,6 +61,7 @@ String LLMEngine::buildPayload() const {
 
   String payload;
   serializeJson(doc, payload);
+  Serial.println("Payload: " + payload); // デバッグ用
   return payload;
 }
 
@@ -127,7 +127,7 @@ void LLMEngine::setSystemPrompt(const String& prompt) {
 }
 
 
-bool LLMEngine::sendAndReceive(String& response) {
+bool LLMEngine::sendAndReceive(LLMResponse& response) {
   HTTPClient https;
   WiFiClientSecure client;
   client.setInsecure(); // または適切なルート証明書を使う
@@ -138,67 +138,47 @@ bool LLMEngine::sendAndReceive(String& response) {
 
   int httpCode = https.POST(buildPayload());
   if (httpCode != 200) {
-    response = "Error: HTTP " + String(httpCode);
+    response.message = "Error: HTTP " + String(httpCode);
+    response.emotion = EmotionType::Sad;
     https.end();
     return false;
   }
 
   String responseBody = https.getString();
+  Serial.println("Response: " + responseBody); // デバッグ用
   DynamicJsonDocument doc(8192);
   DeserializationError error = deserializeJson(doc, responseBody);
   if (error) {
-    response = "Error: JSON parse failed";
+    response.message = "考えてたけどよくわかんなくなっちゃった。";
+    response.emotion = EmotionType::Sad;
     https.end();
     return false;
   }
 
-  response = doc["choices"][0]["message"]["content"].as<String>();
-  addAssistantMessage(response);
+  String content = doc["choices"][0]["message"]["content"].as<String>();
+  Serial.println("Content: " + content); // デバッグ用
+
+  // JSON コードブロックを除去
+  if (content.startsWith("```json") || content.startsWith("```")) {
+    int start = content.indexOf('\n');
+    int end   = content.lastIndexOf("```");
+    if (start != -1 && end != -1 && end > start) {
+      content = content.substring(start + 1, end);
+      content.trim();  // 念のため空白削除
+    }
+  }
+  DynamicJsonDocument inner(512);
+  if (deserializeJson(inner, content)) {
+    response.message = content;
+    response.emotion = EmotionType::Neutral;
+  } else {
+    response.message = inner["message"].as<String>();
+    response.emotion = labelToEnum(inner["emotion"].as<String>());
+  }
+
+  addAssistantMessage(response.message);
   https.end();
   return true;
-}
-
-bool LLMEngine::sendAndReceive(std::vector<String>& responses) {
-  String fullResponse;
-  bool ok = sendAndReceive(fullResponse);  // 既存の関数を使う
-
-  if (!ok) {
-    responses = { "応答に失敗しました。" };
-    return false;
-  }
-
-  responses = splitByNewline(fullResponse);
-  return true;
-}
-
-std::vector<String> LLMEngine::splitByNewline(const String& text) {
-  std::vector<String> result;
-  int start = 0;
-
-  while (true) {
-    int newlinePos = text.indexOf('\n', start);
-    if (newlinePos == -1) break;
-
-    String part = text.substring(start, newlinePos);
-    part.trim();
-    if (!part.isEmpty()) {
-      result.push_back(part);
-      Serial.print("[分割] "); Serial.println(part);
-    }
-    start = newlinePos + 1;
-  }
-
-  // 最後の文（改行なし）
-  if (start < text.length()) {
-    String part = text.substring(start);
-    part.trim();
-    if (!part.isEmpty()) {
-      result.push_back(part);
-      Serial.print("[分割] "); Serial.println(part);
-    }
-  }
-
-  return result;
 }
 
 void LLMEngine::generate(const String& prompt, Callback callback) {
@@ -206,11 +186,7 @@ void LLMEngine::generate(const String& prompt, Callback callback) {
   addUserMessage(prompt);
 
   // 非同期風にするが、現状は同期的に送受信して即 callback を呼ぶ
-  String response;
+  LLMResponse response;
   bool success = sendAndReceive(response);
-  if (success) {
-    callback(response);
-  } else {
-    callback("エラーが発生しました：" + response);
-  }
+  callback(response);
 }

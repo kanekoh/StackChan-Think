@@ -1,9 +1,10 @@
 #pragma once
 #include <Arduino.h>
 #include <vector>
+#include "LLMEngine.h"
 
 class IEngine {
 public:
-  virtual std::vector<String> generateReply(const String& userInput) = 0;
+  virtual LLMResponse generateReply(const String& userInput) = 0;
   virtual ~IEngine() {}
 };

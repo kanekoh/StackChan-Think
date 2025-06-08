@@ -3,6 +3,7 @@
 #include <vector>
 #include "IEngine.h"
 #include "IntentClassifier.h"
+#include "LLMEngine.h"
 
 enum class InteractionState {
   Idle,
@@ -16,7 +17,7 @@ public:
   EngineManager(const String& apiKey);
 
   void registerEngine(const String& intentName, IEngine* engine);
-  std::vector<String> handle(const String& userInput);
+  LLMResponse handle(const String& userInput);
 
   // 新しく追加するメソッド
   void setState(InteractionState newState) {

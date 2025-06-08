@@ -65,9 +65,9 @@ void ThoughtPlanner::requestLLM() {
   Serial.println(prompt);
 
   LLMEngine* engine = llmEngine;
-  engine->generate(prompt, [this](const String& response) {
+  engine->generate(prompt, [this](const LLMResponse& response) {
     if (this) {  // 明示的にチェック（ただし無意味なケースもある）
-      this->onLLMResponse(response);
+      this->onLLMResponse(response.message);
     }
   });
 }

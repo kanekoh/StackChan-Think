@@ -1,4 +1,5 @@
 #include "EngineManager.h"
+#include "LLMEngine.h"
 #include <vector>
 
 EngineManager::EngineManager(const String& apiKey)
@@ -8,7 +9,7 @@ void EngineManager::registerEngine(const String& intentName, IEngine* engine) {
   engineMap[intentName] = engine;
 }
 
-std::vector<String> EngineManager::handle(const String& userInput) {
+LLMResponse EngineManager::handle(const String& userInput) {
   setState(InteractionState::Listening);
   std::vector<String> availableIntents;
   for (const auto& pair : engineMap) {
@@ -17,7 +18,7 @@ std::vector<String> EngineManager::handle(const String& userInput) {
 
   String intent = classifier.classify(userInput, availableIntents);
   Serial.print("[EngineManager] Intent classified as: ");
-  std::vector<String> responses;
+  LLMResponse responses;
 
   if (engineMap.count(intent)) {
     responses = engineMap[intent]->generateReply(userInput);

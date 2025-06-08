@@ -6,29 +6,28 @@
 #include "Message.h"
 
 // ① New enum
-enum class EmotionType { Happy, Neutral, Sad, Angry, Sleeply, Doubt, Undefined };
+enum class EmotionType { Happy, Neutral, Sad, Angry, Sleepy, Doubt, Undefined };
 
 // ② Unified response object
 struct LLMResponse {
-    String       text;        // reply for TTS
-    EmotionType  emotion;     // casual engines use it; others can ignore
+    String message;    // reply for TTS
+    EmotionType         emotion;     // casual engines use it; others can ignore
 };
 
 class LLMEngine {
 public:
-  LLMEngine(const String& apiKey, const String& systemPrompt = "あなたはスーパーかわいいAIアシスタントロボット、スタックチャンです。かわいいく話、元気づけてください。");
+  LLMEngine(const String& apiKey, const String& systemPrompt = "あなたはスーパーかわいいAIアシスタントロボット、スタックチャンです。かわいいく話、元気づけてください。返信はPlanなJSON形式で、messageと emotion で返却してください。emotionは happy, sad, angry, sleepy, doubt, neutral のいずれかを返してください。");
   void addUserMessage(const String& content);
   void addAssistantMessage(const String& content);
   String buildPayload() const;
-  bool sendAndReceive(String& response);
-  bool sendAndReceive(std::vector<String>& responses);
+  bool sendAndReceive(LLMResponse& response);
   void resetConversation();
   bool saveHistoryToFile(const String& filename);
   bool loadHistoryFromFile(const String& filename);
   bool switchTopic(const String& newTopic);
   String currentTopic() const;
   void setSystemPrompt(const String& prompt);
-  using Callback = std::function<void(const String&)>;
+  using Callback = std::function<void(LLMResponse)>;
   void generate(const String& prompt, Callback callback);
   std::vector<std::pair<String, String>> getHistory() const;
   /**

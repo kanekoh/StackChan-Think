@@ -5,9 +5,9 @@ ChatEngine::ChatEngine(const String& apiKey)
   llm.switchTopic("chat");  // デフォルトトピックをセット
 }
 
-std::vector<String> ChatEngine::generateReply(const String& input) {
+LLMResponse ChatEngine::generateReply(const String& input) {
   llm.addUserMessage(input);
-  std::vector<String> result;
+  LLMResponse result;
 
   if (llm.sendAndReceive(result)) {
     llm.saveHistoryToFile("/spiffs/history_" + llm.currentTopic() + ".json");

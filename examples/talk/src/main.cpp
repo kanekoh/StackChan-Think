@@ -14,6 +14,9 @@
 #include "ThoughtPlanner.h"
 #include "PlannerScheduler.h"
 #include <vector>
+#include "LLMEngine.h"
+#include "LLMDecisionEngine.h"
+#include "IFunctionProvider.h"
 
 using namespace m5avatar;
 
@@ -26,6 +29,20 @@ EngineManager* engineManager;
 PlannerScheduler* plannerScheduler;
 ChatEngine* chat;
 ThoughtPlanner* thoughtPlanner;
+LLMDecisionEngine* decisionEngine;
+
+
+Expression emotionFromType(EmotionType emotion) {
+  switch (emotion) {
+    case EmotionType::Happy: return Expression::Happy;
+    case EmotionType::Neutral: return Expression::Neutral;
+    case EmotionType::Sad: return Expression::Sad;
+    case EmotionType::Angry: return Expression::Angry;
+    case EmotionType::Sleepy: return Expression::Sleepy;
+    case EmotionType::Doubt: return Expression::Doubt;
+    default: return Expression::Neutral; // デフォルトは中立
+  }
+}
 
 void outputMessage(String message) {
   Serial.println(message);
@@ -104,13 +121,7 @@ void setup() {
       stt.begin(sttKey,  (openaiKey != sttKey) );  // Whisperを使う場合
 
       // LLMエンジンの初期化
-      chat = new ChatEngine(openaiKey);
-      engineManager = new EngineManager(openaiKey);
-      engineManager->registerEngine("chat", chat);
-      thoughtPlanner = new ThoughtPlanner(chat->getLLMEngine());
-
-      plannerScheduler = new PlannerScheduler(engineManager);
-      plannerScheduler->addPlanner(thoughtPlanner); 
+      decisionEngine = new LLMDecisionEngine(openaiKey);
       outputMessage("Scceeded to read /apikey.txt");
     } else {
       M5.Lcd.println("APIキー読み込み失敗");
@@ -128,12 +139,15 @@ void setup() {
     outputMessage("Wi-Fi connection failed. Check settings.");
   }
 
-
+  decisionEngine->setSystemPrompt("あなたはスーパーかわいいAIアシスタントロボット、スタックチャンです。かわいいく話、元気づけてください。英語など他国の言語の場合はカタカナ表記で返信してください。");
+  std::vector<IFunctionProvider*> providers = { };
+  decisionEngine->setActiveProviders(providers);
+  decisionEngine->buildFunctionSchema();
 
   delay(1000);
   avatar.init();  
-  avatar.addTask(speechTask, "speech", 6144);
-  avatar.addTask(playbackTask, "playback", 6144);
+  avatar.addTask(speechTask, "speech", 8192);
+  avatar.addTask(playbackTask, "playback", 8192);
   avatar.addTask(lipSync, "lipSync");
   avatar.addTask(thoughPlanTask, "thoughtPlanner", 6144);
   avatar.setSpeechFont(&fonts::efontJA_16);
@@ -177,13 +191,11 @@ void loop() {
           avatar.setExpression(Expression::Sleepy);
           avatar.setSpeechText("・・考え中・・");
           delay(60);
-          std::vector<String> replies = engineManager->handle(userText);
-          for (String& text : replies) {
-            SpeechEngine::enqueueText(text);
-          }
 
+          LLMResponse replies = engineManager->handle(userText);
+          SpeechEngine::enqueueText(replies.message);
           avatar.setSpeechText("");
-          avatar.setExpression(Expression::Neutral);
+          avatar.setExpression(emotionFromType(replies.emotion));
 
           waitingForTouch = true;
         }
