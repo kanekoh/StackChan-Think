@@ -48,6 +48,8 @@ public:
 
   void setActiveProviders(const std::vector<IFunctionProvider*>& providers);
 
+  void addFunctionMessage(const String& name, const String& content);
+
 private:
   String _apiKey;
   JsonDocument _chatHistory;

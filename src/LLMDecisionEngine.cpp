@@ -61,6 +61,16 @@ void LLMDecisionEngine::clearHistory(bool keepSystemPrompt) {
   }
 }
 
+void LLMDecisionEngine::addFunctionMessage(const String& name, const String& content) {
+    JsonArray messages = _chatHistory["messages"].as<JsonArray>();
+    JsonObject msg = messages.add<JsonObject>();
+    msg["role"] = "function";
+    msg["name"] = name;
+    msg["content"] = content;
+
+    Serial.printf("📝 Added function message: name=%s, content=%s\n", name.c_str(), content.c_str());
+}
+
 
 void LLMDecisionEngine::rebuildChatHistory() {
   _chatHistory["messages"].clear();
