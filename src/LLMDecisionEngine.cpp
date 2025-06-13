@@ -52,6 +52,8 @@ void LLMDecisionEngine::addMessage(const String& role, const String& content) {
 }
 
 void LLMDecisionEngine::clearHistory(bool keepSystemPrompt) {
+  Serial.printf("⚠️ clearHistory called. keepSystemPrompt=%d\n", keepSystemPrompt ? 1 : 0);
+
   _chatHistory.clear();
   _chatHistory["messages"].to<JsonArray>();
   if (keepSystemPrompt && !_systemPrompt.isEmpty()) {
@@ -88,6 +90,8 @@ bool LLMDecisionEngine::evaluate(String& rawContentOut) {
 }
 
 bool LLMDecisionEngine::isFunctionCall() {
+  Serial.printf("🔍 isFunctionCall(): %s\n", _functionCallPending ? "true" : "false");
+
   return _functionCallPending;
 }
 
@@ -98,7 +102,17 @@ String LLMDecisionEngine::getFunctionName() {
 JsonObject LLMDecisionEngine::getFunctionArguments() {
   const char* rawArgs = _responseJson["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"];
   static JsonDocument argsDoc;
-  deserializeJson(argsDoc, rawArgs);
+  DeserializationError err = deserializeJson(argsDoc, rawArgs);
+
+  if (err) {
+      Serial.printf("❌ Failed to parse function arguments: %s\n", err.c_str());
+  } else {
+      String debug;
+      serializeJson(argsDoc, debug);
+      Serial.printf("🔍 Function arguments: %s\n", debug.c_str());
+  }
+
+
   return argsDoc.as<JsonObject>();
 }
 
@@ -120,6 +134,7 @@ String LLMDecisionEngine::buildRequestJson() {
 
   String out;
   serializeJson(doc, out);
+  Serial.printf("🛫 Sending request to LLM: %s\n", out.c_str());
   return out;
 }
 
@@ -134,6 +149,7 @@ String LLMDecisionEngine::sendRequest(const String& jsonPayload) {
 
   int httpCode = https.POST(jsonPayload);
   String response = https.getString();
+  Serial.printf("🛬 Received response from LLM: %s\n", response.c_str());
 
   https.end();
   return response;
@@ -141,5 +157,10 @@ String LLMDecisionEngine::sendRequest(const String& jsonPayload) {
 
 bool LLMDecisionEngine::parseResponse(const String& jsonResponse) {
   DeserializationError err = deserializeJson(_responseJson, jsonResponse);
+  if (err) {
+      Serial.printf("❌ Failed to parse response: %s\n", err.c_str());
+  } else {
+      Serial.printf("✅ Response parsed successfully.\n");
+}
   return !err;
 }
