@@ -15,7 +15,7 @@ String IntentClassifier::classify(const String& userInput, const std::vector<Str
   String systemPrompt = "次の発言が以下の分類のうちどれに該当するかを判定してください。"
                         "返答は分類名を1語だけ返してください。候補：" + intentList;
 
-  DynamicJsonDocument doc(1024);
+  JsonDocument doc;
   doc["model"] = "gpt-3.5-turbo";
   JsonArray messages = doc.createNestedArray("messages");
   JsonObject sys = messages.createNestedObject();
@@ -44,7 +44,7 @@ String IntentClassifier::classify(const String& userInput, const std::vector<Str
   String response = https.getString();
   https.end();
 
-  DynamicJsonDocument respDoc(1024);
+  JsonDocument respDoc;
   if (deserializeJson(respDoc, response)) return "unknown";
 
   String content = respDoc["choices"][0]["message"]["content"];

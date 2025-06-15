@@ -49,12 +49,12 @@ void LLMEngine::trimHistory() {
 }
 
 String LLMEngine::buildPayload() const {
-  DynamicJsonDocument doc(4096);
+  JsonDocument doc;
   doc["model"] = "gpt-4o-mini";
-  JsonArray messages = doc.createNestedArray("messages");
+  JsonArray messages = doc["messages"].to<JsonArray>();
 
   for (const auto& entry : _history) {
-    JsonObject msg = messages.createNestedObject();
+    JsonObject msg = messages.add<JsonObject>();
     msg["role"] = entry.first;
     msg["content"] = entry.second;
   }
@@ -66,10 +66,10 @@ String LLMEngine::buildPayload() const {
 }
 
 bool LLMEngine::saveHistoryToFile(const String& filename) {
-  DynamicJsonDocument doc(4096);
+  JsonDocument doc;
   JsonArray messages = doc.to<JsonArray>();
   for (const auto& entry : _history) {
-    JsonObject obj = messages.createNestedObject();
+    JsonObject obj = messages.add<JsonObject>();
     obj["role"] = entry.first;
     obj["content"] = entry.second;
   }
@@ -78,7 +78,7 @@ bool LLMEngine::saveHistoryToFile(const String& filename) {
 }
 
 bool LLMEngine::loadHistoryFromFile(const String& filename) {
-  DynamicJsonDocument doc(4096);
+  JsonDocument doc;
   if (!readJsonFromSD(filename.c_str(), doc)) {
     return false;
   }
@@ -146,7 +146,7 @@ bool LLMEngine::sendAndReceive(LLMResponse& response) {
 
   String responseBody = https.getString();
   Serial.println("Response: " + responseBody); // デバッグ用
-  DynamicJsonDocument doc(8192);
+  JsonDocument doc;
   DeserializationError error = deserializeJson(doc, responseBody);
   if (error) {
     response.message = "考えてたけどよくわかんなくなっちゃった。";
@@ -167,7 +167,7 @@ bool LLMEngine::sendAndReceive(LLMResponse& response) {
       content.trim();  // 念のため空白削除
     }
   }
-  DynamicJsonDocument inner(512);
+  JsonDocument inner;
   if (deserializeJson(inner, content)) {
     response.message = content;
     response.emotion = EmotionType::Neutral;
