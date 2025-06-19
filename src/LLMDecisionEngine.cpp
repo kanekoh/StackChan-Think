@@ -85,6 +85,7 @@ void LLMDecisionEngine::rebuildChatHistory() {
 
 bool LLMDecisionEngine::evaluate(String& rawContentOut) {
   buildFunctionSchema();
+  injectDynamicSystemRoles();
   String payload = buildRequestJson();
   String response = sendRequest(payload);
   if (!parseResponse(response)) return false;
@@ -173,4 +174,35 @@ bool LLMDecisionEngine::parseResponse(const String& jsonResponse) {
       Serial.printf("✅ Response parsed successfully.\n");
 }
   return !err;
+}
+
+void LLMDecisionEngine::injectDynamicSystemRoles() {
+  _temporarySystemMessages.clear();
+  for (auto& provider : _dynamicSystemRoles) {
+    String ctx = provider();
+    if (!ctx.isEmpty()) {
+      addMessage("system", ctx);
+      _temporarySystemMessages.push_back(ctx);
+    }
+  }
+}
+
+void LLMDecisionEngine::removeTemporarySystemRoles() {
+  if (_temporarySystemMessages.empty()) return;
+
+  JsonArray messages = _chatHistory["messages"].as<JsonArray>();
+  for (int i = messages.size() - 1; i >= 0; --i) {
+    JsonObject msg = messages[i];
+    if (msg["role"] == "system") {
+      String content = msg["content"].as<String>();
+      if (std::find(_temporarySystemMessages.begin(), _temporarySystemMessages.end(), content) != _temporarySystemMessages.end()) {
+        messages.remove(i);
+      }
+    }
+  }
+  _temporarySystemMessages.clear();
+}
+
+void LLMDecisionEngine::addDynamicSystemRole(DynamicSystemRoleProvider provider) {
+  _dynamicSystemRoles.push_back(provider);
 }

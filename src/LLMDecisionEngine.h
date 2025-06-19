@@ -11,6 +11,7 @@
 class LLMDecisionEngine {
 public:
   using FunctionHandler = std::function<void(JsonObject)>;
+  using DynamicSystemRoleProvider = std::function<String(void)>;
 
   struct FunctionSpec {
     String description;
@@ -50,13 +51,17 @@ public:
 
   void addFunctionMessage(const String& name, const String& content);
 
+  void addDynamicSystemRole(DynamicSystemRoleProvider provider);
+
 private:
   String _apiKey;
   JsonDocument _chatHistory;
   JsonDocument _responseJson;
   JsonDocument _toolDefinition;
   bool _functionCallPending;
-
+  std::vector<DynamicSystemRoleProvider> _dynamicSystemRoles;
+  std::vector<String> _temporarySystemMessages;
+  
   std::map<String, FunctionSpec> _functionRegistry;
   String _systemPrompt;
   std::vector<IFunctionProvider*> _activeProviders;
@@ -66,5 +71,6 @@ private:
   bool parseResponse(const String& jsonResponse);
 
   void rebuildChatHistory();
-
+  void injectDynamicSystemRoles();
+  void removeTemporarySystemRoles();
 };
