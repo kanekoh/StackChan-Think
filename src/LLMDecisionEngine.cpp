@@ -44,11 +44,14 @@ void LLMDecisionEngine::setSystemPrompt(const String& prompt) {
   rebuildChatHistory();
 }
 
-void LLMDecisionEngine::addMessage(const String& role, const String& content) {
+void LLMDecisionEngine::addMessage(const String& role, const String& user, const String& content) {
   JsonArray messages = _chatHistory["messages"].as<JsonArray>();
   JsonObject msg = messages.add<JsonObject>();
   msg["role"] = role;
   msg["content"] = content;
+  if (!user.isEmpty() && (role == "user" || role == "assistant")) {
+    msg["name"] = user;
+  }
 }
 
 void LLMDecisionEngine::clearHistory(bool keepSystemPrompt) {
@@ -181,7 +184,7 @@ void LLMDecisionEngine::injectDynamicSystemRoles() {
   for (auto& provider : _dynamicSystemRoles) {
     String ctx = provider();
     if (!ctx.isEmpty()) {
-      addMessage("system", ctx);
+      addMessage("system", "", ctx);
       _temporarySystemMessages.push_back(ctx);
     }
   }

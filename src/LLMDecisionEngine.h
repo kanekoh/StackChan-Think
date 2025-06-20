@@ -29,7 +29,7 @@ public:
   LLMDecisionEngine(const String& apiKey);
 
   void setSystemPrompt(const String& prompt);
-  void addMessage(const String& role, const String& content);
+  void addMessage(const String& role, const String& user, const String& content);
   void clearHistory(bool keepSystemPrompt = true);
 
   // Automatically build tool schema from registered functions
